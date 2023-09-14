@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+  
+<mapper namespace="com.spring.zerock.mapper.BoardMapper">
+
+  	<!-- 게시판 등록 -->
+    <insert id="register">
+        INSERT INTO TBL_BOARD(
+						bno,
+   						title,
+   						content,
+   						writer)
+				VALUES(
+						seq_board.nextval,
+						#{title},
+						#{content},
+						#{writer})
+    </insert>
+
+	<!-- 게시판 목록 -->
+	<select id="getList" resultType="com.spring.zerock.domain.BoardVO">
+		SELECT * FROM TBL_BOARD
+	</select>
+
+	<!-- 게시글 상세 조회 -->
+	<select id="getRead" resultType="com.spring.zerock.domain.BoardVO">
+		SELECT * FROM TBL_BOARD WHERE bno = #{bno}
+	</select>
+	
+	<!-- 게시글 수정 -->
+	<update id="modify">
+		UPDATE TBL_BOARD SET TITLE = #{title}, CONTENT = #{content}, UPDATEDATE = SYSDATE WHERE BNO = #{bno}
+	</update>
+	
+	<!-- 게시글 삭제 -->
+	<delete id="remove">
+		DELETE FROM TBL_BOARD WHERE BNO = #{bno}
+	</delete>
+	
+	<!-- Oracle -->
+	<!-- 게시판 목록(페이징) -->
+	<select id="getListPaging" resultType="com.spring.zerock.domain.BoardVO">
+		<![CDATA[
+			SELECT bno, title, content, writer, regdate, updatedate
+			FROM (SELECT /*+INDEX_DESC(tbl_board pk_board)*/
+				ROWNUM AS rn, bno, title, content, writer, regdate, updatedate
+				FROM tbl_board
+				WHERE ROWNUM <= #{pageNum} * #{amount}
+		]]>
+			<if test="keyword != null">
+				<include refid="criteria"></include>
+			</if>
+		<![CDATA[
+				)			
+			WHERE rn > (#{pageNum} - 1) * #{amount}					
+		]]>
+	</select>
+	
+	<!-- 게시물 총 개수 -->
+	<!-- if 태그를 한번더 사용한 이유는 검색 조건없이 화면을 이동함으로써 값이 없는 typeArr 변수가 생성되고 BoardMapper로 전달이 되는데 -->
+	<!-- 이로인해 에러가 발생함을 방지하기 위함 -->
+	<!-- WHERE bno > 0은 의미 없는 조건. BUT, include 태그에 의해 삽입될 쿼리문이 and() 형식이기 때문에 구문 오류를 방지하기 위해 작성됨 -->
+	<select id="getTotal" resultType="int">
+		SELECT COUNT(*) FROM tbl_board
+		<if test="keyword != null">
+			WHERE bno > 0 <include refid="criteria"></include>
+		</if>
+	</select>
+	
+	<!-- 검색 조건문 -->
+	<sql id="criteria">
+		<trim prefix="AND (" suffix=")" prefixOverrides="OR">
+			<foreach collection="typeArr" item="type">
+				<trim prefix="OR">
+					<choose>
+						<when test="type == 'T'.toString()">
+							title LIKE '%'||#{keyword}||'%'
+						</when>
+						<when test="type == 'C'.toString()">
+							content LIKE '%'||#{keyword}||'%'
+						</when>
+						<when test="type == 'W'.toString()">
+							writer LIKE '%'||#{keyword}||'%'
+						</when>
+					</choose>
+				</trim>
+			</foreach>
+		</trim>
+	</sql>
+
+</mapper>
+
+
